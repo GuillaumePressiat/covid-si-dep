@@ -72,9 +72,11 @@ get_data <- function(type_fichier, liste_url) {
     pull(url) %>% 
     .[1]
   
-  file_name <- basename(url_file) %>% 
-    stringr::str_replace_all("\\.csv", paste0('__',df_date, ".csv"))
+  file_name <- 'data_temp.csv'
   
+  # file_name <- basename(url_file) %>% 
+  #   stringr::str_replace_all("\\.csv", paste0('__',df_date, ".csv"))
+  # 
   f <- httr::GET(url_stable, httr::write_disk(paste0("files/", file_name), overwrite = TRUE))
   
   enc <- readr::guess_encoding(paste0("files/", file_name)) %>% pull(encoding) %>% .[1]
@@ -191,7 +193,7 @@ ui <- dashboardPage(skin = "black",
                     
   dashboardHeader(title = "COVID via SI-DEP"),
   dashboardSidebar(
-    switchInput(label = 'Temporalité', 'donnee', onLabel = 'Semaine', offLabel = 'Jour', TRUE),
+    switchInput(label = "<i class='far fa-calendar'></i>", 'donnee', onLabel = 'Sem.', offLabel = 'Jour', TRUE, size = 'mini'),
     pickerInput(
     inputId = "lregs",
     label = "Régions",
@@ -244,14 +246,7 @@ server <- function(input, output, session) {
     }
   })
   
-  observeEvent(input$lregs,{
-    choice_tab <-  reactive({to_plot %>% 
-                 filter(reg %in% input$lregs)})
-               
-               updatePickerInput(session, 'ldeps', 
-                                  choices = unique(choice_tab()$dep), 
-                                  selected = unique(choice_tab()$dep))})
-  
+
   output$plot <- plotly::renderPlotly(
     plotly::ggplotly(ggplot(plotting() %>% mutate(dep = forcats::fct_rev(dep))) + 
                        geom_tile(aes(x = time_, y = dep, fill = P)) + 
@@ -281,6 +276,15 @@ server <- function(input, output, session) {
           updatePickerInput(session, "ldeps", selected = liste_departement[grepl(query[['dep']], liste_departement)])
       }
   })
+  
+  observeEvent(input$lregs,{
+    choice_tab <-  reactive({to_plot %>% 
+        filter(reg %in% input$lregs)})
+    
+    updatePickerInput(session, 'ldeps', 
+                      choices = unique(choice_tab()$dep), 
+                      selected = unique(choice_tab()$dep))})
+  
 }
 
 shinyApp(ui, server)
