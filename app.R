@@ -395,6 +395,14 @@ server <- function(input, output, session) {
                                      options = list(
                                       pageLength = 50))
   
+  observeEvent(input$lregs,{
+    choice_tab <-  reactive({to_plot %>% 
+        filter(reg %in% input$lregs)})
+    
+    updatePickerInput(session, 'ldeps', 
+                      choices = unique(choice_tab()$dep), 
+                      selected = unique(choice_tab()$dep))})
+  
   observe({
     query <- parseQueryString(session$clientData$url_search)
     if (!is.null(query[['reg']])) {
@@ -405,14 +413,7 @@ server <- function(input, output, session) {
     }
   })
   
-  observeEvent(input$lregs,{
-    choice_tab <-  reactive({to_plot %>% 
-        filter(reg %in% input$lregs)})
-    
-    updatePickerInput(session, 'ldeps', 
-                      choices = unique(choice_tab()$dep), 
-                      selected = unique(choice_tab()$dep))})
-  
+
 }
 
 shinyApp(ui, server)
