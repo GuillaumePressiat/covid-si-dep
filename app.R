@@ -89,7 +89,7 @@ get_data <- function(type_fichier, liste_url) {
   names(donnee)[names(donnee) == "date_de_passage"] <- "jour"
   
   donnee <- donnee %>% 
-    mutate(semaine = paste0('S', lubridate::isoweek(jour)),
+    mutate(semaine = paste0(lubridate::year(jour), ' S', stringr::str_pad(lubridate::isoweek(jour), 2, "left", 0)),
            jour_sem = lubridate::wday(jour, week_start = 1, abbr = FALSE, label = TRUE)) %>% 
     select(semaine, jour, jour_sem, everything())
   
@@ -349,7 +349,7 @@ server <- function(input, output, session) {
         summarise(P = sum(P),
                   pop = sum(pop)) %>% 
         ungroup() %>% 
-        mutate(inc = P *1e5/pop) %>% 
+        mutate(inc = P * 1e5 / pop) %>% 
         mutate(semaine = ifelse(nb_jour < 7, paste0(semaine, "*\n", nb_jour, "j"), semaine)) %>% 
         rename(time_ = semaine)
     } else {
@@ -378,7 +378,8 @@ server <- function(input, output, session) {
                        scico::scale_fill_scico(begin = 0.2) +
                        guides(colour = "none") +
                        theme_dark() +
-                       labs(x = "", y = ""), height = 650)
+                       labs(x = "", y = "") +
+                       theme(axis.text.x = element_text(angle = 70)), height = 650)
   )
   
   
@@ -387,7 +388,8 @@ server <- function(input, output, session) {
                                                                scico::scale_fill_scico(begin = 0.2) +
                                                                guides(colour = "none") +
                                                                theme_dark() +
-                                                               labs(x = "", y = ""),  height = 650))
+                                                               labs(x = "", y = "") +
+                                                               theme(axis.text.x = element_text(angle = 70)),  height = 650))
   
   output$data <- DT::renderDataTable(dataa1 %>% 
                                        filter(reg %in% input$lregs, dep %in% input$ldeps), 
