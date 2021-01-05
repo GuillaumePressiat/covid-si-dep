@@ -89,8 +89,7 @@ get_data <- function(type_fichier, liste_url) {
   names(donnee)[names(donnee) == "date_de_passage"] <- "jour"
   
   donnee <- donnee %>% 
-    mutate(semaine = paste0(lubridate::year(jour), ' S', stringr::str_pad(lubridate::isoweek(jour), 2, "left", 0)),
-           jour_sem = lubridate::wday(jour, week_start = 1, abbr = FALSE, label = TRUE)) %>% 
+    mutate(semaine = paste0(lubridate::year(lubridate::floor_date(jour, unit = 'week', week_start = 1)), ' S', stringr::str_pad(lubridate::isoweek(jour), 2, 'left', 0)),           jour_sem = lubridate::wday(jour, week_start = 1, abbr = FALSE, label = TRUE)) %>% 
     select(semaine, jour, jour_sem, everything())
   
   donnee <- donnee %>% arrange(desc(jour))
@@ -195,7 +194,8 @@ dataa1 <- dataa %>%
                                     cl_age90 == "79" ~ "70 - 79 ans",
                                     cl_age90 == "89" ~ "80 - 89 ans",
                                     cl_age90 == "90" ~ "90 ans et +",
-                                    TRUE ~ "Toutes classes d'âge"))
+                                    TRUE ~ "Toutes classes d'âge")) %>% 
+  mutate(incidence_1e5 = round(incidence_1e5,3))
 
 library(ggplot2)
 to_plot_clage <- to_plot_clage %>% 
@@ -349,7 +349,7 @@ server <- function(input, output, session) {
         summarise(P = sum(P),
                   pop = sum(pop)) %>% 
         ungroup() %>% 
-        mutate(inc = P * 1e5 / pop) %>% 
+        mutate(round(inc = P * 1e5 / pop,3)) %>% 
         mutate(semaine = ifelse(nb_jour < 7, paste0(semaine, "*\n", nb_jour, "j"), semaine)) %>% 
         rename(time_ = semaine)
     } else {
@@ -358,7 +358,7 @@ server <- function(input, output, session) {
         group_by(jour, `Classe d'âge`) %>% 
         summarise(pop = sum(pop),
                   P = sum(P)) %>% 
-        mutate(inc = P *1e5/pop) %>% 
+        mutate(inc = round(P *1e5/pop,3)) %>% 
         ungroup() %>% 
         rename(time_ = jour)
     }
@@ -391,11 +391,23 @@ server <- function(input, output, session) {
                                                                labs(x = "", y = "") +
                                                                theme(axis.text.x = element_text(angle = 70)),  height = 650))
   
+  # output$data <- DT::renderDataTable(dataa1 %>% 
+  #                                      filter(reg %in% input$lregs, dep %in% input$ldeps), 
+  #                                    filter = 'top',
+  #                                    options = list(
+  #                                     pageLength = 50))
+  
   output$data <- DT::renderDataTable(dataa1 %>% 
-                                       filter(reg %in% input$lregs, dep %in% input$ldeps), 
+                                       filter(cl_age90 == '0', reg %in% input$lregs, dep %in% input$ldeps) %>% 
+                                       select(-cl_age90, - `Classe d'âge`),
                                      filter = 'top',
+                                     extensions = c('Scroller', 'Buttons'),
                                      options = list(
-                                      pageLength = 50))
+                                       deferRender = FALSE,
+                                       scrollY = 550,
+                                       scroller = TRUE,
+                                       dom = 'Bfrtip',
+                                       buttons = c('excel' , 'copy', 'csv', 'colvis')), server = FALSE, rownames = F, escape = FALSE)
   
   observeEvent(input$lregs,{
     choice_tab <-  reactive({to_plot %>% 
