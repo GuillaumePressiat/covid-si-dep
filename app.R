@@ -230,6 +230,25 @@ to_plot_clage <- to_plot_clage %>%
 #                    theme_dark() +
 #                    labs(x = "Semaine (iso)", y = "Département"))
 
+
+library(echarts4r)
+to_plot %>% 
+  mutate(inc = round(inc,2)) %>% 
+  mutate(inc = ifelse(inc == 0, NA, inc)) %>% 
+  e_charts(semaine) %>% 
+  e_heatmap(dep, inc) %>% 
+  e_visual_map(inc, left = "90%", top = "5%") %>% 
+  e_toolbox_feature(feature = "dataZoom") %>% 
+  e_toolbox_feature(feature = "saveAsImage") %>% 
+  e_toolbox_feature(feature = "restore") %>% 
+  e_y_axis(inverse = TRUE) %>% 
+  e_tooltip(formatter = htmlwidgets::JS("
+                                    function(params){
+                                    return(params.value[1] + ' / ' + params.value[0] + ' : ' + 
+                                    params.value[2])
+                                    }
+                                    "))
+
 library("shiny")
 library(shinyWidgets)
 
@@ -349,7 +368,7 @@ server <- function(input, output, session) {
         summarise(P = sum(P),
                   pop = sum(pop)) %>% 
         ungroup() %>% 
-        mutate(round(inc = P * 1e5 / pop,3)) %>% 
+        mutate(inc = round(P * 1e5 / pop,3)) %>% 
         mutate(semaine = ifelse(nb_jour < 7, paste0(semaine, "*\n", nb_jour, "j"), semaine)) %>% 
         rename(time_ = semaine)
     } else {
