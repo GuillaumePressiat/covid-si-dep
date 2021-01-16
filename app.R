@@ -211,25 +211,6 @@ to_plot_clage <- to_plot_clage %>%
                               cl_age90 == "89" ~ "80 - 89 ans",
                               cl_age90 == "90" ~ "90 ans et +"))
 
-# sum(te[te$semaine == "S35",]$pop)
-
-# plotly::ggplotly(ggplot(to_plot) + 
-#   geom_tile(aes(x = semaine, y = dep, fill = P, col = type_semaine)) + 
-#   scale_colour_manual(values = c("Semaine incomplète" = "grey30", "Semaine complète" = NA)) +
-#   scico::scale_fill_scico(begin = 0.2) +
-#   guides(colour = "none") +
-#   theme_dark() +
-#     theme(legend.position = "none")+
-#   labs(x = "Semaine (iso)", y = "Département"))
-# 
-# plotly::ggplotly(ggplot(to_plot) + 
-#                    geom_tile(aes(x = semaine, y = dep, fill = inc, col = type_semaine)) + 
-#                    scale_colour_manual(values = c("Semaine incomplète" = "grey30", "Semaine complète" = NA)) +
-#                    scico::scale_fill_scico(begin = 0.1) +
-#                    guides(colour = "none") +
-#                    theme_dark() +
-#                    labs(x = "Semaine (iso)", y = "Département"))
-
 
 library(echarts4r)
 to_plot %>% 
@@ -237,7 +218,7 @@ to_plot %>%
   mutate(inc = ifelse(inc == 0, NA, inc)) %>% 
   e_charts(semaine) %>% 
   e_heatmap(dep, inc) %>% 
-  e_visual_map(inc, left = "90%", top = "5%") %>% 
+  e_visual_map(inc, left = "90%", top = "8%") %>% 
   e_toolbox_feature(feature = "dataZoom") %>% 
   e_toolbox_feature(feature = "saveAsImage") %>% 
   e_toolbox_feature(feature = "restore") %>% 
@@ -257,12 +238,30 @@ library(shinydashboard)
 liste_region <- unique(to_plot$reg)
 liste_departement <- unique(to_plot$dep)
 
+library(shinyjs)
+
 ui <- dashboardPage(skin = "black",
                     
                     dashboardHeader(title = "COVID via SI-DEP"),
                     dashboardSidebar(
+                      shinyjs::useShinyjs(),
                       switchInput(label = "<i class='far fa-calendar'></i>", 'donnee', onLabel = 'Sem.', offLabel = 'Jour', TRUE, size = 'mini'),
                       switchInput(label = "<i class='far fa-info-circle'></i>", 'incide', onLabel = 'Effectifs', offLabel = 'Incidence', FALSE, size = 'mini'),
+                      dateInput(
+                        inputId = "date_1", 
+                        value = 
+                          lubridate::floor_date(
+                            min(to_plot_jour$jour), week_start = 1, unit = "weeks"),
+                            daysofweekdisabled = c(0, 2:6),
+                        weekstart = 1,
+                        startview = "year",
+                        label = "Semaine de début",
+                        format = "D dd/mm/yyyy",
+                        min = lubridate::floor_date(
+                          min(to_plot_jour$jour), week_start = 1, unit = "weeks"),
+                        language = "fr",
+                        max = Sys.Date()
+                      ),
                       pickerInput(
                         inputId = "lregs",
                         label = "Régions",
@@ -283,29 +282,35 @@ ui <- dashboardPage(skin = "black",
                         multiple = TRUE,
                         selected = unique(to_plot$dep)
                       ),
-                      sidebarMenu(
-                        menuItem("Géographie", tabName = "geographie", icon = icon("location-arrow")),
-                        menuItem("Classes d'âge", icon = icon("eye"), tabName = "clages",
+                      sidebarMenu(id = "tabsa", 
+                                  
+                        menuItem("Heatmap", tabName = "heatmap", icon = icon("location-arrow")),
+                        menuItem("Classes d'âge", icon = icon("eye"), tabName = "clages"),
+                        menuItem("Calendrier", icon = icon("calendar"), tabName = "calendar",
                                  badgeLabel = "new", badgeColor = "green"),
-                        menuItem("Données brutes", icon = icon("th"), tabName = "databr",
-                                 badgeLabel = "new", badgeColor = "green")
+                        menuItem("Données brutes", icon = icon("th"), tabName = "databr")
                       ),
                       br(),
                       HTML('&nbsp;'), tags$em('   Dernière mise à jour le : ', br(),HTML('&nbsp;'), data_and_meta[[1]]$incidence$df_date),
                       br(),
                       tags$b(tags$a(href = 'https://www.data.gouv.fr/fr/datasets/taux-dincidence-de-lepidemie-de-covid-19/', 'Source : Données SI-DEP Santé publique France'))),
                     dashboardBody(
+                      
                       tags$em(textOutput('value')),
                       tabItems(
-                        tabItem(tabName = "geographie",
+                        tabItem(tabName = "heatmap",
                                 
                                   h2(textOutput('title')), 
-                                  plotly::plotlyOutput("plot"), height = "650px"),
+                                  echarts4r::echarts4rOutput("plot", width = "100%", height = "650px")),
                         
                         tabItem(tabName = "clages",
                                 
                                   h2(textOutput("title_clage")), 
-                                  plotly::plotlyOutput('plot_clage', height = "650px")),
+                                echarts4r::echarts4rOutput("plot_clage", width = "100%", height = "650px")),
+                        tabItem(tabName = "calendar",
+                                
+                                h2(textOutput("title_cal")), 
+                                echarts4r::echarts4rOutput("plot_calendar", height = "650px")),
                         
                         tabItem(tabName = "databr",
                                 
@@ -315,13 +320,24 @@ ui <- dashboardPage(skin = "black",
 )
 
 server <- function(input, output, session) {
+  
+  semaine_pivot <- reactive({
+    paste0(
+    lubridate::year(lubridate::floor_date(input$date_1, week_start = 1, unit = "weeks")),
+    ' S', stringr::str_pad(lubridate::isoweek(lubridate::floor_date(input$date_1, week_start = 1, unit = "weeks")), 2,"left","0")
+    )
+  })
   output$value <- renderText({
+    if (input$tabsa != "calendar"){
     if (input$donnee){
       "Les données présentées sont hebdomadaires (semaines iso), attention certaines semaines ne sont pas complètes voir abscisse"
     } else {
       "Les données présentées sont journalières"
     }
+    } else {' '}
   })
+  
+
   
   output$title <- renderText({
     if (input$incide){
@@ -330,7 +346,14 @@ server <- function(input, output, session) {
       "Incidence pour 100 000 habitants"
     }
   })
-  
+  output$title_cal <- renderText({
+    if (input$incide){
+      "Effectifs positifs"
+    } else {
+      "Incidence pour 100 000 habitants"
+    }
+  })
+    
   output$title_clage <- renderText({
     if (input$incide){
       "Effectifs positifs par classe d'âge"
@@ -338,14 +361,17 @@ server <- function(input, output, session) {
       "Incidence pour 100 000 habitants par classe d'âge"
     }
   })
+  
   plotting <- reactive({
+    req(input$ldeps)
+    
     if (input$donnee){
       temp <- to_plot %>% 
-        filter(reg %in% input$lregs, dep %in% input$ldeps) %>% 
+        filter(reg %in% input$lregs, dep %in% input$ldeps, semaine >= semaine_pivot()) %>% 
         rename(time_ = semaine)
     } else {
       temp <- to_plot_jour %>% 
-        filter(reg %in% input$lregs, dep %in% input$ldeps) %>% 
+        filter(reg %in% input$lregs, dep %in% input$ldeps, jour >= input$date_1) %>% 
         rename(time_ = jour)
     }
     
@@ -357,9 +383,12 @@ server <- function(input, output, session) {
   })
   
   plotting_clage <- reactive({
+    req(input$ldeps)
+    
+    
     if (input$donnee){
       temp <- to_plot_clage %>% 
-        filter(reg %in% input$lregs, dep %in% input$ldeps) %>% 
+        filter(reg %in% input$lregs, dep %in% input$ldeps, semaine >= semaine_pivot()) %>% 
         group_by(semaine, `Classe d'âge`, pop) %>% 
         summarise(nb_jour = n_distinct(jour),
                   P = sum(P)) %>% 
@@ -373,7 +402,7 @@ server <- function(input, output, session) {
         rename(time_ = semaine)
     } else {
       temp <- to_plot_clage %>% 
-        filter(reg %in% input$lregs, dep %in% input$ldeps) %>% 
+        filter(reg %in% input$lregs, dep %in% input$ldeps, jour >= input$date_1) %>% 
         group_by(jour, `Classe d'âge`) %>% 
         summarise(pop = sum(pop),
                   P = sum(P)) %>% 
@@ -381,7 +410,30 @@ server <- function(input, output, session) {
         ungroup() %>% 
         rename(time_ = jour)
     }
-    
+    if (input$incide){
+      temp %>% rename(mesure = P)
+    } else {
+      temp %>% rename(mesure = inc)
+    }
+  })
+  
+    plotting_calendar <- reactive({
+      req(input$ldeps)
+      
+        temp <- to_plot_jour %>% 
+          filter(reg %in% input$lregs, dep %in% input$ldeps, jour >= input$date_1) %>% 
+          group_by(jour) %>% 
+          summarise(P = sum(P), 
+                    pop = sum(pop)) %>% 
+          mutate(inc = round(P *1e5/pop,2))
+        
+        pivot_time <- tibble(jour = seq.Date(from = as.Date('2020-01-01'), 
+                                             to = as.Date('2021-12-31'), by = 1))
+        
+        temp <- temp %>% right_join(pivot_time, by = "jour") %>% 
+          tidyr::replace_na(list(inc = 0, P = 0)) %>% 
+          arrange(jour)
+        
     if (input$incide){
       temp %>% rename(mesure = P)
     } else {
@@ -390,34 +442,82 @@ server <- function(input, output, session) {
   })
   
   cdata <- session$clientData
-  
-  output$plot <- plotly::renderPlotly(
-    plotly::ggplotly(ggplot(plotting() %>% mutate(dep = forcats::fct_rev(dep))) +
-                       geom_tile(aes(x = time_, y = dep, fill = mesure)) +
-                       scico::scale_fill_scico(begin = 0.2) +
-                       guides(colour = "none") +
-                       theme_dark() +
-                       labs(x = "", y = "") +
-                       theme(axis.text.x = element_text(angle = 70)), height = 650)
+
+  output$plot <- echarts4r::renderEcharts4r(
+    plotting() %>% 
+      mutate(mesure = round(mesure, 1)) %>% 
+      # mutate(mesure = ifelse(mesure == 0, NA, mesure)) %>% 
+      e_charts(time_) %>% 
+      e_heatmap(dep, mesure) %>% 
+      e_visual_map(mesure, left = "90%", top = "8%") %>% 
+      e_toolbox_feature(feature = "dataZoom") %>% 
+      e_toolbox_feature(feature = "saveAsImage") %>% 
+      e_toolbox_feature(feature = "restore") %>% 
+      e_y_axis(inverse = TRUE) %>% 
+      e_tooltip(formatter = htmlwidgets::JS("
+                                    function(params){
+                                    return(params.value[1] + ' / ' + params.value[0] + ' : ' + 
+                                    params.value[2])
+                                    }
+                                    "))
   )
   
+  output$plot_clage <- echarts4r::renderEcharts4r(
+    plotting_clage() %>% 
+      mutate(mesure = round(mesure, 1)) %>% 
+      # mutate(mesure = ifelse(mesure == 0, NA, mesure)) %>% 
+      e_charts(time_) %>% 
+      e_heatmap(`Classe d'âge`, mesure) %>% 
+      e_visual_map(mesure, left = "90%", top = "8%") %>% 
+      e_toolbox_feature(feature = "dataZoom") %>% 
+      e_toolbox_feature(feature = "saveAsImage") %>% 
+      e_toolbox_feature(feature = "restore") %>% 
+      # e_y_axis(inverse = TRUE) %>% 
+      e_tooltip(formatter = htmlwidgets::JS("
+                                    function(params){
+                                    return(params.value[1] + ' / ' + params.value[0] + ' : ' + 
+                                    params.value[2])
+                                    }
+                                    "))
+)
   
-  output$plot_clage <- plotly::renderPlotly(plotly::ggplotly(ggplot(plotting_clage()) +
-                                                               geom_tile(aes(x = time_, y = `Classe d'âge`, fill = mesure)) +
-                                                               scico::scale_fill_scico(begin = 0.2) +
-                                                               guides(colour = "none") +
-                                                               theme_dark() +
-                                                               labs(x = "", y = "") +
-                                                               theme(axis.text.x = element_text(angle = 70)),  height = 650))
-  
-  # output$data <- DT::renderDataTable(dataa1 %>% 
-  #                                      filter(reg %in% input$lregs, dep %in% input$ldeps), 
-  #                                    filter = 'top',
-  #                                    options = list(
-  #                                     pageLength = 50))
+    output$plot_calendar <- echarts4r::renderEcharts4r(
+
+      
+    plotting_calendar() %>% 
+      mutate(mesure = round(mesure, 1)) %>% 
+      # mutate(mesure = ifelse(mesure == 0, NA, mesure)) %>% 
+      mutate(mesure = ifelse(mesure == 0, NA, mesure)) %>% 
+      mutate(year = format(jour, "%Y")) %>% 
+      group_by(year) %>% 
+      e_charts(jour) %>% 
+      e_calendar(range = "2020",
+                 top="40", 
+                 left = 60, 
+                 dayLabel = list(
+                   firstDay=1, 
+                   nameMap = c('Di', 'Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa')),
+                 monthLabel = list(
+                   nameMap = lubridate::month(1:12, label = TRUE, abbr = FALSE))) %>%
+      e_calendar(range = "2021",
+                 top="220", 
+                 left = 60, 
+                 dayLabel = list(
+                   firstDay=1, 
+                   nameMap = c('Di', 'Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa')),
+                 monthLabel = list(
+                   nameMap = lubridate::month(1:12, label = TRUE, abbr = FALSE))) %>%
+      e_heatmap(mesure, coord_system = "calendar") %>% 
+      e_visual_map(min = 1L, max = max(plotting_calendar()$mesure), top = "400px", left = "50px") %>% 
+      e_tooltip(formatter = htmlwidgets::JS("
+                                    function(params){
+                                    return(params.value[0] + ': ' + params.value[1])
+                                    }
+                                    "))
+    )
   
   output$data <- DT::renderDataTable(dataa1 %>% 
-                                       filter(cl_age90 == '0', reg %in% input$lregs, dep %in% input$ldeps) %>% 
+                                       filter(cl_age90 == '0', reg %in% input$lregs, dep %in% input$ldeps, jour >= input$date_1) %>% 
                                        select(-cl_age90, - `Classe d'âge`),
                                      filter = 'top',
                                      extensions = c('Scroller', 'Buttons'),
@@ -436,6 +536,14 @@ server <- function(input, output, session) {
                       choices = unique(choice_tab()$dep), 
                       selected = unique(choice_tab()$dep))})
   
+
+  
+  observeEvent(TRUE, {
+    updateTabsetPanel(session, "tabsa",
+                      selected = "calendar"
+    )
+  })
+
   observe({
     query <- parseQueryString(session$clientData$url_search)
     if (!is.null(query[['reg']])) {
@@ -444,9 +552,14 @@ server <- function(input, output, session) {
     if (!is.null(query[['dep']])) {
       updatePickerInput(session, "ldeps", selected = liste_departement[grepl(query[['dep']], liste_departement)])
     }
+    if (input$tabsa == 'calendar'){
+      hide('donnee')
+    } else {
+      show('donnee')
+    }
   })
   
-
+  
 }
 
 shinyApp(ui, server)
