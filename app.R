@@ -213,22 +213,22 @@ to_plot_clage <- to_plot_clage %>%
 
 
 library(echarts4r)
-to_plot %>% 
-  mutate(inc = round(inc,2)) %>% 
-  mutate(inc = ifelse(inc == 0, NA, inc)) %>% 
-  e_charts(semaine) %>% 
-  e_heatmap(dep, inc) %>% 
-  e_visual_map(inc, left = "90%", top = "8%") %>% 
-  e_toolbox_feature(feature = "dataZoom") %>% 
-  e_toolbox_feature(feature = "saveAsImage") %>% 
-  e_toolbox_feature(feature = "restore") %>% 
-  e_y_axis(inverse = TRUE) %>% 
-  e_tooltip(formatter = htmlwidgets::JS("
-                                    function(params){
-                                    return(params.value[1] + ' / ' + params.value[0] + ' : ' + 
-                                    params.value[2])
-                                    }
-                                    "))
+# to_plot %>% 
+#   mutate(inc = round(inc,2)) %>% 
+#   mutate(inc = ifelse(inc == 0, NA, inc)) %>% 
+#   e_charts(semaine) %>% 
+#   e_heatmap(dep, inc) %>% 
+#   e_visual_map(inc, left = "90%", top = "8%") %>% 
+#   e_toolbox_feature(feature = "dataZoom") %>% 
+#   e_toolbox_feature(feature = "saveAsImage") %>% 
+#   e_toolbox_feature(feature = "restore") %>% 
+#   e_y_axis(inverse = TRUE) %>% 
+#   e_tooltip(formatter = htmlwidgets::JS("
+#                                     function(params){
+#                                     return(params.value[1] + ' / ' + params.value[0] + ' : ' + 
+#                                     params.value[2])
+#                                     }
+#                                     "))
 
 library("shiny")
 library(shinyWidgets)
@@ -458,7 +458,7 @@ server <- function(input, output, session) {
       e_tooltip(formatter = htmlwidgets::JS("
                                     function(params){
                                     return(params.value[1] + ' / ' + params.value[0] + ' : ' + 
-                                    params.value[2])
+                                    Number(params.value[2]).toLocaleString('fr-FR'))
                                     }
                                     "))
   )
@@ -477,7 +477,7 @@ server <- function(input, output, session) {
       e_tooltip(formatter = htmlwidgets::JS("
                                     function(params){
                                     return(params.value[1] + ' / ' + params.value[0] + ' : ' + 
-                                    params.value[2])
+                                    Number(params.value[2]).toLocaleString('fr-FR'))
                                     }
                                     "))
 )
@@ -512,7 +512,7 @@ server <- function(input, output, session) {
       e_visual_map(min = 1L, max = max(plotting_calendar()$mesure), top = "400px", left = "50px") %>% 
       e_tooltip(formatter = htmlwidgets::JS("
                                     function(params){
-                                    return(params.value[0] + ': ' + params.value[1])
+                                    return(params.value[0] + ': ' + Number(params.value[1]).toLocaleString('fr-FR'))
                                     }
                                     "))
     )
