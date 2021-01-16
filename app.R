@@ -302,7 +302,7 @@ ui <- dashboardPage(skin = "black",
                         tabItem(tabName = "heatmap",
                                 
                                   h2(textOutput('title')), 
-                                  echarts4r::echarts4rOutput("plot", width = "100%", height = "650px")),
+                                  echarts4r::echarts4rOutput("plot",  height = "650px")), #width = "100%",
                         
                         tabItem(tabName = "clages",
                                 
@@ -493,7 +493,7 @@ server <- function(input, output, session) {
       group_by(year) %>% 
       e_charts(jour) %>% 
       e_calendar(range = "2020",
-                 top="40", 
+                 top="60", 
                  left = 60, 
                  dayLabel = list(
                    firstDay=1, 
@@ -501,7 +501,7 @@ server <- function(input, output, session) {
                  monthLabel = list(
                    nameMap = lubridate::month(1:12, label = TRUE, abbr = FALSE))) %>%
       e_calendar(range = "2021",
-                 top="220", 
+                 top="240", 
                  left = 60, 
                  dayLabel = list(
                    firstDay=1, 
@@ -509,7 +509,8 @@ server <- function(input, output, session) {
                  monthLabel = list(
                    nameMap = lubridate::month(1:12, label = TRUE, abbr = FALSE))) %>%
       e_heatmap(mesure, coord_system = "calendar") %>% 
-      e_visual_map(min = 1L, max = max(plotting_calendar()$mesure), top = "400px", left = "50px") %>% 
+      e_visual_map(min = 1L, max = max(plotting_calendar()$mesure), top = "420px", left = "50px") %>% 
+      e_toolbox_feature(feature = "saveAsImage") %>% 
       e_tooltip(formatter = htmlwidgets::JS("
                                     function(params){
                                     return(params.value[0] + ': ' + Number(params.value[1]).toLocaleString('fr-FR'))
