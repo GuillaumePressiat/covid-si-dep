@@ -251,7 +251,8 @@ ui <- dashboardPage(skin = "black",
                         inputId = "date_1", 
                         value = 
                           lubridate::floor_date(
-                            min(to_plot_jour$jour), week_start = 1, unit = "weeks"),
+                            # min(to_plot_jour$jour), week_start = 1, unit = "weeks"),
+                            as.Date('2020-06-01'), week_start = 1, unit = "weeks"),
                             daysofweekdisabled = c(0, 2:6),
                         weekstart = 1,
                         startview = "year",
