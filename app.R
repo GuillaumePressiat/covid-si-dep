@@ -29,7 +29,7 @@ liste_url <- list(
   #                        include = TRUE),
   incidence = list(url_web = "https://www.data.gouv.fr/fr/datasets/taux-dincidence-de-lepidemie-de-covid-19/",
                    url_stable = "https://www.data.gouv.fr/fr/datasets/r/19a91d64-3cd3-42fc-9943-d635491a4d76",
-                   url_api = "https://www.data.gouv.fr/api/1/datasets/97ba6866bc29427961934736b20b53cf3b44c54c",
+                   url_api = "https://www.data.gouv.fr/api/1/datasets/5ed1175ca00bbe1e4941a46a",
                    titre = "Taux d'incidence de l'épidémie de COVID-19 SI-DEP",
                    file_pattern = "sp-pe-tb-quot-dep", 
                    delim = ";",
