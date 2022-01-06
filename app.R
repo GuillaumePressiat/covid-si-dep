@@ -29,7 +29,7 @@ liste_url <- list(
   #                        include = TRUE),
   incidence = list(url_web = "https://www.data.gouv.fr/fr/datasets/taux-dincidence-de-lepidemie-de-covid-19/",
                    url_stable = "https://www.data.gouv.fr/fr/datasets/r/19a91d64-3cd3-42fc-9943-d635491a4d76",
-                   url_api = "https://www.data.gouv.fr/api/1/datasets/5ed1175ca00bbe1e4941a46a",
+                   url_api = "https://www.data.gouv.fr/api/1/datasets/97ba6866bc29427961934736b20b53cf3b44c54c",
                    titre = "Taux d'incidence de l'épidémie de COVID-19 SI-DEP",
                    file_pattern = "sp-pe-tb-quot-dep", 
                    delim = ";",
@@ -429,7 +429,7 @@ server <- function(input, output, session) {
           mutate(inc = round(P *1e5/pop,2))
         
         pivot_time <- tibble(jour = seq.Date(from = as.Date('2020-01-01'), 
-                                             to = as.Date('2021-12-31'), by = 1))
+                                             to = as.Date('2022-12-31'), by = 1))
         
         temp <- temp %>% right_join(pivot_time, by = "jour") %>% 
           tidyr::replace_na(list(inc = 0, P = 0)) %>% 
@@ -493,7 +493,7 @@ server <- function(input, output, session) {
       group_by(year) %>% 
       e_charts(jour) %>% 
       e_calendar(range = "2020",
-                 top="60", 
+                 top="20", 
                  left = 60, 
                  dayLabel = list(
                    firstDay=1, 
@@ -501,15 +501,25 @@ server <- function(input, output, session) {
                  monthLabel = list(
                    nameMap = lubridate::month(1:12, label = TRUE, abbr = FALSE))) %>%
       e_calendar(range = "2021",
-                 top="240", 
+                 top="170", 
                  left = 60, 
                  dayLabel = list(
                    firstDay=1, 
                    nameMap = c('Di', 'Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa')),
-                 monthLabel = list(
-                   nameMap = lubridate::month(1:12, label = TRUE, abbr = FALSE))) %>%
+                 monthLabel = "") %>% 
+                 # list(
+                 #   nameMap = lubridate::month(1:12, label = TRUE, abbr = FALSE))) %>%
+      e_calendar(range = "2022",
+                 top="320", 
+                 left = 60, 
+                 dayLabel = list(
+                   firstDay=1, 
+                   nameMap = c('Di', 'Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa')),
+                 monthLabel = "") %>% 
+      # list(
+      #   nameMap = lubridate::month(1:12, label = TRUE, abbr = FALSE))) %>%
       e_heatmap(mesure, coord_system = "calendar") %>% 
-      e_visual_map(min = 1L, max = max(plotting_calendar()$mesure), top = "420px", left = "50px") %>% 
+      e_visual_map(min = 1L, max = max(plotting_calendar()$mesure), top = "500px", left = "5px") %>% 
       e_toolbox_feature(feature = "saveAsImage") %>% 
       e_tooltip(formatter = htmlwidgets::JS("
                                     function(params){
